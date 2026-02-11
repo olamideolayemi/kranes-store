@@ -1,0 +1,178 @@
+[
+  {
+    "id": 1,
+    "title": "Apex Noise-Canceling Headphones",
+    "price": 189.99,
+    "description": "Premium wireless headphones with adaptive ANC and 40-hour battery life.",
+    "category": "electronics",
+    "image": "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_.jpg",
+    "rating": { "rate": 4.7, "count": 510 },
+    "stock": 42,
+    "sku": "ELEC-HP-001"
+  },
+  {
+    "id": 2,
+    "title": "Velocity Smart Watch Pro",
+    "price": 249.0,
+    "description": "Fitness and productivity smartwatch with GPS, blood oxygen tracking and NFC.",
+    "category": "electronics",
+    "image": "https://fakestoreapi.com/img/71li-ujtlUL._AC_UX679_.jpg",
+    "rating": { "rate": 4.5, "count": 334 },
+    "stock": 30,
+    "sku": "ELEC-SW-002"
+  },
+  {
+    "id": 3,
+    "title": "Men's Urban Bomber Jacket",
+    "price": 74.99,
+    "description": "Lightweight bomber with premium zipper and wind-resistant outer shell.",
+    "category": "men's clothing",
+    "image": "https://fakestoreapi.com/img/71YXzeOuslL._AC_UY879_.jpg",
+    "rating": { "rate": 4.3, "count": 210 },
+    "stock": 70,
+    "sku": "MCL-JKT-003"
+  },
+  {
+    "id": 4,
+    "title": "Women's Running Performance Tee",
+    "price": 29.99,
+    "description": "Moisture-wicking training top designed for comfort and performance.",
+    "category": "women's clothing",
+    "image": "https://fakestoreapi.com/img/51eg55uWmdL._AC_UX679_.jpg",
+    "rating": { "rate": 4.4, "count": 195 },
+    "stock": 95,
+    "sku": "WCL-TEE-004"
+  },
+  {
+    "id": 5,
+    "title": "Aurora Gold Necklace",
+    "price": 159.99,
+    "description": "Elegant 14k plated necklace for special occasions.",
+    "category": "jewelery",
+    "image": "https://fakestoreapi.com/img/71yaT5Qjq3L._AC_UL640_QL65_ML3_.jpg",
+    "rating": { "rate": 4.8, "count": 128 },
+    "stock": 24,
+    "sku": "JEW-NKL-005"
+  },
+  {
+    "id": 6,
+    "title": "Titanium Wedding Band",
+    "price": 89.99,
+    "description": "Scratch-resistant titanium ring with polished finish.",
+    "category": "jewelery",
+    "image": "https://fakestoreapi.com/img/71wbiw6Xx3L._AC_UY879_.jpg",
+    "rating": { "rate": 4.2, "count": 146 },
+    "stock": 60,
+    "sku": "JEW-RNG-006"
+  },
+  {
+    "id": 7,
+    "title": "Ultra HD 27-inch Monitor",
+    "price": 329.99,
+    "description": "27-inch 4K IPS monitor with HDR support and USB-C connectivity.",
+    "category": "electronics",
+    "image": "https://fakestoreapi.com/img/61IBBVJvSDL._AC_SY879_.jpg",
+    "rating": { "rate": 4.6, "count": 292 },
+    "stock": 27,
+    "sku": "ELEC-MON-007"
+  },
+  {
+    "id": 8,
+    "title": "Wireless Mechanical Keyboard",
+    "price": 119.99,
+    "description": "Hot-swappable mechanical keyboard with RGB and low-latency mode.",
+    "category": "electronics",
+    "image": "https://fakestoreapi.com/img/61U7T1koQqL._AC_SX679_.jpg",
+    "rating": { "rate": 4.5, "count": 180 },
+    "stock": 53,
+    "sku": "ELEC-KBD-008"
+  },
+  {
+    "id": 9,
+    "title": "Men's Everyday Chino Pants",
+    "price": 49.99,
+    "description": "Stretch-fit chinos with premium stitching for all-day comfort.",
+    "category": "men's clothing",
+    "image": "https://fakestoreapi.com/img/71HblAHs5xL._AC_UY879_-2.jpg",
+    "rating": { "rate": 4.1, "count": 117 },
+    "stock": 64,
+    "sku": "MCL-PNT-009"
+  },
+  {
+    "id": 10,
+    "title": "Women's Casual Hoodie",
+    "price": 54.99,
+    "description": "Soft fleece hoodie with relaxed fit and durable drawstrings.",
+    "category": "women's clothing",
+    "image": "https://fakestoreapi.com/img/51Y5NI-I5jL._AC_UX679_.jpg",
+    "rating": { "rate": 4.7, "count": 264 },
+    "stock": 82,
+    "sku": "WCL-HOD-010"
+  },
+  {
+    "id": 11,
+    "title": "Smart Home Speaker Max",
+    "price": 139.99,
+    "description": "Voice assistant speaker with room-filling audio and smart home hub.",
+    "category": "electronics",
+    "image": "https://fakestoreapi.com/img/61SBaMtmfLL._AC_UL640_QL65_ML3_.jpg",
+    "rating": { "rate": 4.3, "count": 221 },
+    "stock": 39,
+    "sku": "ELEC-SPK-011"
+  },
+  {
+    "id": 12,
+    "title": "Diamond Accent Earrings",
+    "price": 219.99,
+    "description": "Minimalist earrings with premium finish and secure clasp.",
+    "category": "jewelery",
+    "image": "https://fakestoreapi.com/img/61pHAEJ4NML._AC_UX679_.jpg",
+    "rating": { "rate": 4.9, "count": 94 },
+    "stock": 18,
+    "sku": "JEW-EAR-012"
+  },
+  {
+    "id": 13,
+    "title": "Portable SSD 2TB",
+    "price": 199.99,
+    "description": "High-speed external SSD with USB-C and shock-resistant body.",
+    "category": "electronics",
+    "image": "https://fakestoreapi.com/img/61mtL65D4cL._AC_SX679_.jpg",
+    "rating": { "rate": 4.8, "count": 173 },
+    "stock": 49,
+    "sku": "ELEC-SSD-013"
+  },
+  {
+    "id": 14,
+    "title": "Women's Formal Blazer",
+    "price": 89.99,
+    "description": "Tailored blazer for office and formal wear.",
+    "category": "women's clothing",
+    "image": "https://fakestoreapi.com/img/71z3kpMAYsL._AC_UY879_.jpg",
+    "rating": { "rate": 4.2, "count": 136 },
+    "stock": 41,
+    "sku": "WCL-BLZ-014"
+  },
+  {
+    "id": 15,
+    "title": "Men's Linen Shirt",
+    "price": 39.99,
+    "description": "Breathable linen shirt ideal for warm weather.",
+    "category": "men's clothing",
+    "image": "https://fakestoreapi.com/img/71li-ujtlUL._AC_UX679_.jpg",
+    "rating": { "rate": 4.0, "count": 89 },
+    "stock": 88,
+    "sku": "MCL-SRT-015"
+  },
+  {
+    "id": 16,
+    "title": "Gaming Mouse Pro X",
+    "price": 79.99,
+    "description": "Precision gaming mouse with customizable DPI and programmable buttons.",
+    "category": "electronics",
+    "image": "https://fakestoreapi.com/img/81QpkIctqPL._AC_SX679_.jpg",
+    "rating": { "rate": 4.6, "count": 208 },
+    "stock": 57,
+    "sku": "ELEC-MSE-016"
+  }
+]
