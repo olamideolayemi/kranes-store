@@ -63,6 +63,7 @@ function Header() {
 
         <nav className="nav-links">
           <NavLink to="/products">Products</NavLink>
+          {user?.role === 'admin' ? <NavLink to="/admin">Admin</NavLink> : null}
           <NavLink to="/wishlist" className="icon-link">
             <Heart size={18} />
             <span>Wishlist</span>

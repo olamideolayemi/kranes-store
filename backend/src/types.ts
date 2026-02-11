@@ -13,6 +13,8 @@ export interface ProductRecord {
   rating: Rating
   stock: number
   sku: string
+  isCustom?: boolean
+  isArchived?: boolean
 }
 
 export interface AddressRecord {
@@ -41,6 +43,7 @@ export interface UserRecord {
   id: string
   email: string
   name: string
+  role: 'customer' | 'admin'
   passwordHash: string
   createdAt: string
   addresses: AddressRecord[]
@@ -63,6 +66,8 @@ export interface PaymentRecord {
   cardLast4: string
 }
 
+export type OrderStatus = 'processing' | 'shipped' | 'out_for_delivery' | 'delivered'
+
 export interface OrderRecord {
   id: string
   userId: string
@@ -71,7 +76,7 @@ export interface OrderRecord {
   tax: number
   shipping: number
   total: number
-  status: 'processing' | 'shipped' | 'out_for_delivery' | 'delivered'
+  status: OrderStatus
   shippingAddress: AddressRecord
   payment: PaymentRecord
   createdAt: string
@@ -99,6 +104,7 @@ export interface AnalyticsEvent {
 export interface AuthTokenPayload {
   userId: string
   email: string
+  role: 'customer' | 'admin'
 }
 
 export interface DatabaseShape {

@@ -5,9 +5,17 @@ import { nanoid } from 'nanoid'
 import { LRUCache } from 'lru-cache'
 import { z } from 'zod'
 import { CONFIG } from './config'
-import { authMiddleware, parseToken, signToken } from './auth'
+import { adminMiddleware, authMiddleware, parseToken, signToken } from './auth'
 import { db } from './dataStore'
-import type { AnalyticsEvent, CardRecord, OrderRecord, ProductRecord, ReturnRecord, UserRecord } from './types'
+import type {
+  AnalyticsEvent,
+  CardRecord,
+  OrderRecord,
+  OrderStatus,
+  ProductRecord,
+  ReturnRecord,
+  UserRecord,
+} from './types'
 
 const app = express()
 const FAKE_STORE_BASE_URL = 'https://fakestoreapi.com'
@@ -20,7 +28,7 @@ app.use(
 )
 app.use(express.json({ limit: '1mb' }))
 
-const productCache = new LRUCache<string, unknown>({ max: 100, ttl: CONFIG.cacheTtlMs })
+const productCache = new LRUCache<string, unknown>({ max: 150, ttl: CONFIG.cacheTtlMs })
 
 interface FakeStoreProduct {
   id: number
@@ -33,39 +41,6 @@ interface FakeStoreProduct {
     rate: number
     count: number
   }
-}
-
-const normalizeProducts = (products: FakeStoreProduct[]): ProductRecord[] => {
-  const inventory = db.read().products
-  const byId = new Map(inventory.map((entry) => [entry.id, entry]))
-
-  return products.map((product) => {
-    const local = byId.get(product.id)
-    return {
-      ...product,
-      stock: local?.stock ?? 120,
-      sku: local?.sku ?? `FS-${String(product.id).padStart(4, '0')}`,
-    }
-  })
-}
-
-const fetchFakeStoreProducts = async (): Promise<ProductRecord[]> => {
-  const cacheKey = '__fakestore_products__'
-  const cached = productCache.get(cacheKey)
-
-  if (cached) {
-    return cached as ProductRecord[]
-  }
-
-  const response = await fetch(`${FAKE_STORE_BASE_URL}/products`)
-  if (!response.ok) {
-    throw new Error(`Fake Store API failed (${response.status})`)
-  }
-
-  const raw = (await response.json()) as FakeStoreProduct[]
-  const normalized = normalizeProducts(raw)
-  productCache.set(cacheKey, normalized)
-  return normalized
 }
 
 const bySort = (items: ProductRecord[], sortBy: string) => {
@@ -106,13 +81,92 @@ const variantFromSeed = (seed: string, values: string[]) => {
   return values[hash % values.length]
 }
 
+const fetchFakeStoreProductsRaw = async (): Promise<FakeStoreProduct[]> => {
+  const cacheKey = '__fakestore_raw_products__'
+  const cached = productCache.get(cacheKey)
+
+  if (cached) {
+    return cached as FakeStoreProduct[]
+  }
+
+  const response = await fetch(`${FAKE_STORE_BASE_URL}/products`)
+  if (!response.ok) {
+    throw new Error(`Fake Store API failed (${response.status})`)
+  }
+
+  const raw = (await response.json()) as FakeStoreProduct[]
+  productCache.set(cacheKey, raw)
+  return raw
+}
+
+const mergeProducts = async (): Promise<ProductRecord[]> => {
+  const fakeProducts = await fetchFakeStoreProductsRaw()
+  const localProducts = db.read().products
+  const localById = new Map(localProducts.map((item) => [item.id, item]))
+
+  const mergedFromFake = fakeProducts
+    .map((remote) => {
+      const local = localById.get(remote.id)
+      const combined: ProductRecord = {
+        ...remote,
+        ...local,
+        rating: local?.rating || remote.rating,
+        stock: local?.stock ?? 120,
+        sku: local?.sku || `FS-${String(remote.id).padStart(4, '0')}`,
+        isCustom: false,
+      }
+
+      if (combined.isArchived) {
+        return null
+      }
+
+      return combined
+    })
+    .filter(Boolean) as ProductRecord[]
+
+  const fakeIds = new Set(fakeProducts.map((entry) => entry.id))
+  const localOnly = localProducts.filter((entry) => !fakeIds.has(entry.id) && !entry.isArchived)
+
+  return [...mergedFromFake, ...localOnly]
+}
+
+const getProductById = async (productId: number): Promise<ProductRecord | undefined> => {
+  const products = await mergeProducts()
+  return products.find((entry) => entry.id === productId)
+}
+
+const ensureAdminUser = async (): Promise<void> => {
+  const snapshot = db.read()
+  const existingAdmin = snapshot.users.find((entry) => entry.role === 'admin')
+
+  if (existingAdmin) {
+    return
+  }
+
+  const passwordHash = await bcrypt.hash(CONFIG.bootstrapAdminPassword, 10)
+  const adminUser: UserRecord = {
+    id: nanoid(),
+    email: CONFIG.bootstrapAdminEmail,
+    name: CONFIG.bootstrapAdminName,
+    role: 'admin',
+    passwordHash,
+    createdAt: new Date().toISOString(),
+    addresses: [],
+    cards: [],
+  }
+
+  snapshot.users.push(adminUser)
+  db.saveUsers(snapshot.users)
+  console.log(`Bootstrap admin created: ${CONFIG.bootstrapAdminEmail}`)
+}
+
 app.get('/api/health', (_request, response) => {
   response.json({ status: 'ok', service: 'kranes-api' })
 })
 
 app.get('/api/products/meta/categories', async (_request, response) => {
   try {
-    const categories = Array.from(new Set((await fetchFakeStoreProducts()).map((product) => product.category)))
+    const categories = Array.from(new Set((await mergeProducts()).map((product) => product.category)))
     response.json(categories)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load categories'
@@ -139,21 +193,22 @@ app.get('/api/products', async (request, response) => {
 
   let allProducts: ProductRecord[]
   try {
-    allProducts = await fetchFakeStoreProducts()
+    allProducts = await mergeProducts()
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load products'
     response.status(502).json({ message })
     return
   }
+
   const filtered = allProducts.filter((product) => {
     const categoryMatch = category === 'all' || product.category === category
     const queryMatch =
       q.length === 0 ||
       product.title.toLowerCase().includes(q) ||
       product.description.toLowerCase().includes(q)
-    const ratingMatch = product.rating.rate >= minRating
+    const ratingMatch = (product.rating?.rate ?? 0) >= minRating
     const priceMatch = product.price <= maxPrice
-    const popularMatch = !onlyPopular || product.rating.count >= 120
+    const popularMatch = !onlyPopular || (product.rating?.count ?? 0) >= 120
 
     return categoryMatch && queryMatch && ratingMatch && priceMatch && popularMatch
   })
@@ -182,22 +237,20 @@ app.get('/api/products', async (request, response) => {
 
 app.get('/api/products/:id', async (request, response) => {
   const productId = Number(request.params.id)
-  let product: ProductRecord | undefined
 
   try {
-    product = (await fetchFakeStoreProducts()).find((entry) => entry.id === productId)
+    const product = await getProductById(productId)
+
+    if (!product) {
+      response.status(404).json({ message: 'Product not found' })
+      return
+    }
+
+    response.json(product)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load product'
     response.status(502).json({ message })
-    return
   }
-
-  if (!product) {
-    response.status(404).json({ message: 'Product not found' })
-    return
-  }
-
-  response.json(product)
 })
 
 const registerSchema = z.object({
@@ -228,6 +281,7 @@ app.post('/api/auth/register', async (request, response) => {
     id: nanoid(),
     email,
     name,
+    role: 'customer',
     passwordHash,
     createdAt: new Date().toISOString(),
     addresses: [],
@@ -237,8 +291,8 @@ app.post('/api/auth/register', async (request, response) => {
   const users = [...snapshot.users, user]
   db.saveUsers(users)
 
-  const token = signToken({ userId: user.id, email: user.email })
-  response.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name } })
+  const token = signToken({ userId: user.id, email: user.email, role: user.role })
+  response.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
 })
 
 const loginSchema = z.object({
@@ -268,13 +322,13 @@ app.post('/api/auth/login', async (request, response) => {
     return
   }
 
-  const token = signToken({ userId: user.id, email: user.email })
-  response.json({ token, user: { id: user.id, email: user.email, name: user.name } })
+  const token = signToken({ userId: user.id, email: user.email, role: user.role })
+  response.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
 })
 
 app.get('/api/auth/me', authMiddleware, (request, response) => {
-  const { id, email, name } = request.user!
-  response.json({ id, email, name })
+  const { id, email, name, role } = request.user!
+  response.json({ id, email, name, role })
 })
 
 app.get('/api/account/addresses', authMiddleware, (request, response) => {
@@ -423,15 +477,16 @@ app.post('/api/orders', authMiddleware, async (request, response) => {
   }
 
   const snapshot = db.read()
-  let remoteProducts: ProductRecord[]
+  let products: ProductRecord[]
 
   try {
-    remoteProducts = await fetchFakeStoreProducts()
+    products = await mergeProducts()
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load catalog for order'
     response.status(502).json({ message })
     return
   }
+
   const user = snapshot.users.find((entry) => entry.id === request.user!.id)
 
   if (!user) {
@@ -450,7 +505,7 @@ app.post('/api/orders', authMiddleware, async (request, response) => {
   let orderItems: OrderRecord['items']
   try {
     orderItems = parsed.data.items.map((item) => {
-      const product = remoteProducts.find((entry) => entry.id === item.id)
+      const product = products.find((entry) => entry.id === item.id)
 
       if (!product) {
         throw new Error(`Product ${item.id} not found`)
@@ -462,6 +517,7 @@ app.post('/api/orders', authMiddleware, async (request, response) => {
           ...product,
           stock: product.stock ?? 120,
           sku: product.sku || `FS-${String(product.id).padStart(4, '0')}`,
+          isCustom: Boolean(product.isCustom),
         }
         snapshot.products.push(inventory)
       }
@@ -578,21 +634,267 @@ app.post('/api/account/returns', authMiddleware, (request, response) => {
   response.status(201).json(returnRequest)
 })
 
-app.get('/api/inventory/:productId', (request, response) => {
+app.get('/api/inventory/:productId', async (request, response) => {
   const productId = Number(request.params.productId)
+
+  try {
+    const product = await getProductById(productId)
+
+    if (!product) {
+      response.status(404).json({ message: 'Product not found' })
+      return
+    }
+
+    response.json({ productId, sku: product.sku, stock: product.stock })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not load inventory'
+    response.status(502).json({ message })
+  }
+})
+
+app.get('/api/admin/overview', authMiddleware, adminMiddleware, async (_request, response) => {
+  const snapshot = db.read()
+  const allProducts = await mergeProducts()
+
+  response.json({
+    products: allProducts.length,
+    orders: snapshot.orders.length,
+    returns: snapshot.returns.length,
+    users: snapshot.users.length,
+    revenue: snapshot.orders.reduce((sum, order) => sum + order.total, 0),
+  })
+})
+
+app.get('/api/admin/products', authMiddleware, adminMiddleware, async (_request, response) => {
+  const products = await mergeProducts()
+  response.json(products)
+})
+
+const adminProductSchema = z.object({
+  title: z.string().min(3),
+  price: z.number().positive(),
+  description: z.string().min(8),
+  category: z.string().min(2),
+  image: z.string().url(),
+  stock: z.number().int().min(0),
+})
+
+app.post('/api/admin/products', authMiddleware, adminMiddleware, (request, response) => {
+  const parsed = adminProductSchema.safeParse(request.body)
+
+  if (!parsed.success) {
+    response.status(400).json({ message: 'Invalid product payload' })
+    return
+  }
+
+  const snapshot = db.read()
+  const nextId = Math.max(100000, ...snapshot.products.map((entry) => entry.id), 0) + 1
+
+  const product: ProductRecord = {
+    id: nextId,
+    title: parsed.data.title,
+    price: parsed.data.price,
+    description: parsed.data.description,
+    category: parsed.data.category,
+    image: parsed.data.image,
+    rating: { rate: 4.5, count: 0 },
+    stock: parsed.data.stock,
+    sku: `ADM-${String(nextId).padStart(6, '0')}`,
+    isCustom: true,
+  }
+
+  snapshot.products.push(product)
+  db.saveProducts(snapshot.products)
+  productCache.clear()
+  response.status(201).json(product)
+})
+
+const adminProductPatchSchema = z.object({
+  title: z.string().min(3).optional(),
+  price: z.number().positive().optional(),
+  description: z.string().min(8).optional(),
+  category: z.string().min(2).optional(),
+  image: z.string().url().optional(),
+  stock: z.number().int().min(0).optional(),
+  isArchived: z.boolean().optional(),
+})
+
+app.patch('/api/admin/products/:id', authMiddleware, adminMiddleware, async (request, response) => {
+  const parsed = adminProductPatchSchema.safeParse(request.body)
+  if (!parsed.success) {
+    response.status(400).json({ message: 'Invalid product update payload' })
+    return
+  }
+
+  const productId = Number(request.params.id)
+  const snapshot = db.read()
+
+  let product = snapshot.products.find((entry) => entry.id === productId)
+  if (!product) {
+    const merged = await mergeProducts()
+    const source = merged.find((entry) => entry.id === productId)
+
+    if (!source) {
+      response.status(404).json({ message: 'Product not found' })
+      return
+    }
+
+    product = { ...source }
+    snapshot.products.push(product)
+  }
+
+  Object.assign(product, parsed.data)
+  db.saveProducts(snapshot.products)
+  productCache.clear()
+
+  response.json(product)
+})
+
+app.delete('/api/admin/products/:id', authMiddleware, adminMiddleware, (request, response) => {
+  const productId = Number(request.params.id)
   const snapshot = db.read()
   const product = snapshot.products.find((entry) => entry.id === productId)
 
   if (!product) {
-    response.json({
-      productId,
-      sku: `FS-${String(productId).padStart(4, '0')}`,
-      stock: 120,
-    })
+    response.status(404).json({ message: 'Product not found in local managed catalog' })
     return
   }
 
-  response.json({ productId, sku: product.sku, stock: product.stock })
+  if (product.isCustom) {
+    snapshot.products = snapshot.products.filter((entry) => entry.id !== productId)
+  } else {
+    product.isArchived = true
+  }
+
+  db.saveProducts(snapshot.products)
+  productCache.clear()
+  response.status(204).end()
+})
+
+app.get('/api/admin/orders', authMiddleware, adminMiddleware, (request, response) => {
+  const snapshot = db.read()
+  const orders = snapshot.orders.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+  response.json(orders)
+})
+
+const orderStatusSchema = z.object({
+  status: z.enum(['processing', 'shipped', 'out_for_delivery', 'delivered']),
+})
+
+app.patch('/api/admin/orders/:id/status', authMiddleware, adminMiddleware, (request, response) => {
+  const parsed = orderStatusSchema.safeParse(request.body)
+  if (!parsed.success) {
+    response.status(400).json({ message: 'Invalid order status payload' })
+    return
+  }
+
+  const snapshot = db.read()
+  const order = snapshot.orders.find((entry) => entry.id === request.params.id)
+
+  if (!order) {
+    response.status(404).json({ message: 'Order not found' })
+    return
+  }
+
+  order.status = parsed.data.status as OrderStatus
+  order.updatedAt = new Date().toISOString()
+  db.saveOrders(snapshot.orders)
+
+  response.json(order)
+})
+
+app.get('/api/admin/returns', authMiddleware, adminMiddleware, (request, response) => {
+  const snapshot = db.read()
+  response.json(snapshot.returns)
+})
+
+const returnStatusSchema = z.object({
+  status: z.enum(['requested', 'approved', 'refunded']),
+})
+
+app.patch('/api/admin/returns/:id/status', authMiddleware, adminMiddleware, (request, response) => {
+  const parsed = returnStatusSchema.safeParse(request.body)
+  if (!parsed.success) {
+    response.status(400).json({ message: 'Invalid return status payload' })
+    return
+  }
+
+  const snapshot = db.read()
+  const returnRequest = snapshot.returns.find((entry) => entry.id === request.params.id)
+
+  if (!returnRequest) {
+    response.status(404).json({ message: 'Return not found' })
+    return
+  }
+
+  returnRequest.status = parsed.data.status
+  db.saveReturns(snapshot.returns)
+
+  response.json(returnRequest)
+})
+
+app.get('/api/admin/inventory', authMiddleware, adminMiddleware, async (_request, response) => {
+  const products = await mergeProducts()
+  response.json(
+    products.map((product) => ({
+      id: product.id,
+      title: product.title,
+      sku: product.sku,
+      stock: product.stock,
+      category: product.category,
+      price: product.price,
+      source: product.isCustom ? 'custom' : 'fakestore',
+    })),
+  )
+})
+
+const inventoryPatchSchema = z.object({
+  stock: z.number().int().min(0),
+})
+
+app.patch('/api/admin/inventory/:productId', authMiddleware, adminMiddleware, async (request, response) => {
+  const parsed = inventoryPatchSchema.safeParse(request.body)
+  if (!parsed.success) {
+    response.status(400).json({ message: 'Invalid inventory payload' })
+    return
+  }
+
+  const productId = Number(request.params.productId)
+  const snapshot = db.read()
+  let product = snapshot.products.find((entry) => entry.id === productId)
+
+  if (!product) {
+    const merged = await mergeProducts()
+    const source = merged.find((entry) => entry.id === productId)
+
+    if (!source) {
+      response.status(404).json({ message: 'Product not found' })
+      return
+    }
+
+    product = { ...source }
+    snapshot.products.push(product)
+  }
+
+  product.stock = parsed.data.stock
+  db.saveProducts(snapshot.products)
+  productCache.clear()
+
+  response.json({ id: product.id, stock: product.stock, sku: product.sku })
+})
+
+app.get('/api/admin/analytics', authMiddleware, adminMiddleware, (_request, response) => {
+  const events = db.read().analytics
+  const byType = events.reduce<Record<string, number>>((acc, event) => {
+    acc[event.eventType] = (acc[event.eventType] || 0) + 1
+    return acc
+  }, {})
+
+  response.json({
+    totalEvents: events.length,
+    byType,
+    recentEvents: events.slice(-20).reverse(),
+  })
 })
 
 const analyticsSchema = z.object({
@@ -665,6 +967,13 @@ app.use('/api', (_request, response) => {
   response.status(404).json({ message: 'API route not found' })
 })
 
-app.listen(CONFIG.port, () => {
-  console.log(`kranes-api running on http://localhost:${CONFIG.port}`)
-})
+const start = async () => {
+  await ensureAdminUser()
+
+  app.listen(CONFIG.port, () => {
+    console.log(`kranes-api running on http://localhost:${CONFIG.port}`)
+    console.log(`Admin login email: ${CONFIG.bootstrapAdminEmail}`)
+  })
+}
+
+void start()

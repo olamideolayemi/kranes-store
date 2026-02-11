@@ -47,6 +47,7 @@ function LoginPage() {
         <h1>{mode === 'login' ? 'Login' : 'Create account'}</h1>
       </div>
       <p>Sign in to access orders, saved cards, addresses, tracking, and returns.</p>
+      <p className="muted-text">Default admin demo credentials: admin@kranes.market / Admin123!</p>
 
       <div className="view-toggle">
         <button type="button" className={mode === 'login' ? 'chip chip-active' : 'chip'} onClick={() => setMode('login')}>

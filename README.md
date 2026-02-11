@@ -105,6 +105,8 @@ Krane's Market is a learning/demo project that includes:
 - Protected routes:
   - `/account`
   - `/checkout`
+- Role-protected admin route:
+  - `/admin`
 - Account modules:
   - Orders history
   - Tracking timeline
@@ -112,14 +114,30 @@ Krane's Market is a learning/demo project that includes:
   - Saved addresses
   - Saved cards
 
-## 3) Ordering + Inventory
+## 3) Admin Dashboard
+
+Admin capabilities include:
+
+- Product creation and catalog management
+- Inventory updates by SKU/product
+- Order status transitions
+- Return request approvals/refunds
+- Revenue/usage overview
+- Analytics event summary
+
+Default demo admin credentials:
+
+- Email: `admin@kranes.market`
+- Password: `Admin123!`
+
+## 4) Ordering + Inventory
 
 - Checkout uses saved address + saved card
 - `POST /api/orders` creates order + payment record
 - Inventory stock is validated and decremented on order
 - Tracking and return endpoints connected to created orders
 
-## 4) Performance / Scale-Oriented Patterns
+## 5) Performance / Scale-Oriented Patterns
 
 - Server-side product query pipeline
 - Pagination metadata returned by API
@@ -171,6 +189,21 @@ Supported `/products` query params:
 - `GET /account/cards`
 - `POST /account/cards`
 - `DELETE /account/cards/:id`
+
+### Admin (admin role required)
+
+- `GET /admin/overview`
+- `GET /admin/products`
+- `POST /admin/products`
+- `PATCH /admin/products/:id`
+- `DELETE /admin/products/:id`
+- `GET /admin/orders`
+- `PATCH /admin/orders/:id/status`
+- `GET /admin/returns`
+- `PATCH /admin/returns/:id/status`
+- `GET /admin/inventory`
+- `PATCH /admin/inventory/:productId`
+- `GET /admin/analytics`
 
 ### Orders
 
@@ -235,6 +268,10 @@ Backend defaults in code:
 
 - API port: `4000`
 - JWT secret: dev fallback in `backend/src/config.ts`
+- Admin bootstrap account from environment:
+  - `ADMIN_EMAIL`
+  - `ADMIN_PASSWORD`
+  - `ADMIN_NAME`
 
 For public deployment, set a strong production `JWT_SECRET`.
 

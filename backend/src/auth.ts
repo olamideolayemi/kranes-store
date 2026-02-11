@@ -42,3 +42,17 @@ export const authMiddleware = (request: Request, response: Response, next: NextF
   request.user = user
   next()
 }
+
+export const adminMiddleware = (request: Request, response: Response, next: NextFunction) => {
+  if (!request.user) {
+    response.status(401).json({ message: 'Unauthorized' })
+    return
+  }
+
+  if (request.user.role !== 'admin') {
+    response.status(403).json({ message: 'Admin access required' })
+    return
+  }
+
+  next()
+}

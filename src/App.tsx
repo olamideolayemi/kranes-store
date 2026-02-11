@@ -4,6 +4,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import ProtectedRoute from './components/common/ProtectedRoute'
+import AdminRoute from './components/common/AdminRoute'
 import { useAnalytics } from './hooks/useAnalytics'
 import { useAppDispatch } from './hooks/useStore'
 import HomePage from './pages/HomePage'
@@ -14,6 +15,7 @@ import WishlistPage from './pages/WishlistPage'
 import LoginPage from './pages/LoginPage'
 import CheckoutPage from './pages/CheckoutPage'
 import AccountPage from './pages/AccountPage'
+import AdminPage from './pages/AdminPage'
 import NotFoundPage from './pages/NotFoundPage'
 import { hydrateSession } from './store/slices/authSlice'
 
@@ -62,6 +64,14 @@ function App() {
                   <ProtectedRoute>
                     <AccountPage />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminPage />
+                  </AdminRoute>
                 }
               />
               <Route path="*" element={<NotFoundPage />} />

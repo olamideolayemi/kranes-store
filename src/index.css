@@ -111,6 +111,10 @@
     font: inherit;
   }
 
+  textarea.input {
+    @apply min-h-[110px] resize-y;
+  }
+
   .search-form .input {
     @apply pl-9;
   }
@@ -623,6 +627,30 @@
   .auth-wrap {
     width: min(520px, 100%);
     @apply grid gap-3;
+  }
+
+  .admin-grid {
+    @apply grid gap-3 md:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .admin-stat {
+    @apply grid gap-1 p-4;
+  }
+
+  .admin-stat p {
+    @apply text-2xl font-black text-blue-700;
+  }
+
+  .admin-stat-wide {
+    @apply md:col-span-2 xl:col-span-2;
+  }
+
+  .admin-row {
+    @apply flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3;
+  }
+
+  .inventory-input {
+    @apply w-24;
   }
 
   .auth-form {

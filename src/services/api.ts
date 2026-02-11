@@ -1,5 +1,8 @@
 import type {
   Address,
+  AdminOverview,
+  AnalyticsSummary,
+  InventoryItem,
   Order,
   PaginatedProducts,
   Product,
@@ -137,4 +140,41 @@ export const experimentsApi = {
     checkoutVariant: 'compact' | 'guided'
     recommendationVariant: 'top-rated' | 'frequently-bought'
   }> => request('/experiments'),
+}
+
+export const adminApi = {
+  overview: (): Promise<AdminOverview> => request('/admin/overview', { auth: true }),
+  products: (): Promise<Product[]> => request('/admin/products', { auth: true }),
+  createProduct: (payload: {
+    title: string
+    price: number
+    description: string
+    category: string
+    image: string
+    stock: number
+  }): Promise<Product> => request('/admin/products', { method: 'POST', auth: true, body: payload }),
+  updateProduct: (
+    productId: number,
+    payload: Partial<{
+      title: string
+      price: number
+      description: string
+      category: string
+      image: string
+      stock: number
+      isArchived: boolean
+    }>,
+  ): Promise<Product> => request(`/admin/products/${productId}`, { method: 'PATCH', auth: true, body: payload }),
+  deleteProduct: (productId: number): Promise<void> =>
+    request(`/admin/products/${productId}`, { method: 'DELETE', auth: true }),
+  orders: (): Promise<Order[]> => request('/admin/orders', { auth: true }),
+  updateOrderStatus: (orderId: string, status: Order['status']): Promise<Order> =>
+    request(`/admin/orders/${orderId}/status`, { method: 'PATCH', auth: true, body: { status } }),
+  returns: (): Promise<ReturnRequest[]> => request('/admin/returns', { auth: true }),
+  updateReturnStatus: (returnId: string, status: ReturnRequest['status']): Promise<ReturnRequest> =>
+    request(`/admin/returns/${returnId}/status`, { method: 'PATCH', auth: true, body: { status } }),
+  inventory: (): Promise<InventoryItem[]> => request('/admin/inventory', { auth: true }),
+  updateInventory: (productId: number, stock: number): Promise<{ id: number; stock: number; sku: string }> =>
+    request(`/admin/inventory/${productId}`, { method: 'PATCH', auth: true, body: { stock } }),
+  analytics: (): Promise<AnalyticsSummary> => request('/admin/analytics', { auth: true }),
 }

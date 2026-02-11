@@ -13,6 +13,7 @@ export interface Product {
   }
   stock?: number
   sku?: string
+  isCustom?: boolean
 }
 
 export interface CartItem {
@@ -28,6 +29,7 @@ export interface User {
   id: string
   email: string
   name: string
+  role: 'customer' | 'admin'
 }
 
 export interface Address {
@@ -102,6 +104,37 @@ export interface CatalogMeta {
 export interface PaginatedProducts {
   items: Product[]
   meta: CatalogMeta
+}
+
+export interface AdminOverview {
+  products: number
+  orders: number
+  returns: number
+  users: number
+  revenue: number
+}
+
+export interface InventoryItem {
+  id: number
+  title: string
+  sku: string
+  stock: number
+  category: string
+  price: number
+  source: 'custom' | 'fakestore'
+}
+
+export interface AnalyticsSummary {
+  totalEvents: number
+  byType: Record<string, number>
+  recentEvents?: Array<{
+    id: string
+    userId?: string
+    sessionId?: string
+    eventType: string
+    metadata?: Record<string, unknown>
+    timestamp: string
+  }>
 }
 
 export interface ToastMessage {
