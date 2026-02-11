@@ -267,4 +267,6 @@ Product catalog content itself is fetched from Fake Store API and normalized in 
 
 ## License
 
-Choose and add your preferred license before public release (for example MIT).
+This project is licensed under the **MIT License**.
+
+See the full license text in [`LICENSE`](LICENSE).
